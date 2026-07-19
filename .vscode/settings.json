@@ -1,0 +1,12 @@
+{
+    "DockerRun.DisableAutoGenerateConfig": true,
+    "chat.agentHost.enabled": true,
+    "cSpell.words": [
+        "CTEST",
+        "DSERIAL",
+        "gcovr",
+        "mmio",
+        "regs",
+        "UART"
+    ]
+}
