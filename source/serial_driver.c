@@ -1,6 +1,8 @@
 #include "serial_driver.h"
 #include "x17v358_regs.h"
 
+#include <stddef.h>
+
 enum
 {
   X17V358_MAX_PORT = 12u
@@ -8,10 +10,16 @@ enum
 
 static uintptr_t g_reg_base_addr = (uintptr_t)UINT64_C (0xFC0000000);
 
-static bool
+static inline bool
 isValidPort (uint8_t port)
 {
   return port <= X17V358_MAX_PORT;
+}
+
+static inline bool
+isRegisterBaseValid (void)
+{
+  return g_reg_base_addr != 0u;
 }
 
 static volatile x17v358_channel_regs_t *
@@ -34,13 +42,38 @@ portInitialization (uint8_t port)
 {
   if (!isValidPort (port))
     {
-      return ERROR_INVALID_PARAM;
+      return ERROR_INVALID_PORT;
     }
 
-  disableAllInterrupts (port);
-  setLoopbackState (port, false);
-  setFifoState (port, true);
-  setDiscreteState (port, false);
+  if (!isRegisterBaseValid ())
+    {
+      return ERROR_NULL_REGISTER_BASE;
+    }
+
+  /* Initialize all sub-functions - collect error from any failures */
+  Error err = disableAllInterrupts (port);
+  if (err != ERROR_SUCCESS)
+    {
+      return err;
+    }
+
+  err = setLoopbackState (port, false);
+  if (err != ERROR_SUCCESS)
+    {
+      return err;
+    }
+
+  err = setFifoState (port, true);
+  if (err != ERROR_SUCCESS)
+    {
+      return err;
+    }
+
+  err = setDiscreteState (port, false);
+  if (err != ERROR_SUCCESS)
+    {
+      return err;
+    }
 
   return ERROR_SUCCESS;
 }
@@ -49,13 +82,25 @@ Error
 getFifoState (uint8_t port, bool *state)
 {
   x17v358_fcr_isr_reg_t fcr = { 0 };
-  volatile x17v358_channel_regs_t *regs = getChannelRegs (port);
+  volatile x17v358_channel_regs_t *regs = NULL;
+
   if (!isValidPort (port))
     {
-      return ERROR_INVALID_PARAM;
+      return ERROR_INVALID_PORT;
     }
 
-  if (regs == 0 || state == 0)
+  if (state == NULL)
+    {
+      return ERROR_NULL_PTR;
+    }
+
+  if (!isRegisterBaseValid ())
+    {
+      return ERROR_NULL_REGISTER_BASE;
+    }
+
+  regs = getChannelRegs (port);
+  if (regs == NULL)
     {
       return ERROR_NULL_PTR;
     }
@@ -64,18 +109,25 @@ getFifoState (uint8_t port, bool *state)
   *state = fcr.fcr_bits.fifo_enable ? true : false;
   return ERROR_SUCCESS;
 }
+
 Error
 disableAllInterrupts (uint8_t port)
 {
   x17v358_ier_reg_t ier = { 0 };
-  volatile x17v358_channel_regs_t *regs = getChannelRegs (port);
+  volatile x17v358_channel_regs_t *regs = NULL;
 
   if (!isValidPort (port))
     {
-      return ERROR_INVALID_PARAM;
+      return ERROR_INVALID_PORT;
     }
 
-  if (regs == 0)
+  if (!isRegisterBaseValid ())
+    {
+      return ERROR_NULL_REGISTER_BASE;
+    }
+
+  regs = getChannelRegs (port);
+  if (regs == NULL)
     {
       return ERROR_NULL_PTR;
     }
@@ -99,14 +151,20 @@ Error
 setDiscreteState (uint8_t port, bool enable)
 {
   x17v358_mcr_reg_t mcr = { 0 };
-  volatile x17v358_channel_regs_t *regs = getChannelRegs (port);
+  volatile x17v358_channel_regs_t *regs = NULL;
 
   if (!isValidPort (port))
     {
-      return ERROR_INVALID_PARAM;
+      return ERROR_INVALID_PORT;
     }
 
-  if (regs == 0)
+  if (!isRegisterBaseValid ())
+    {
+      return ERROR_NULL_REGISTER_BASE;
+    }
+
+  regs = getChannelRegs (port);
+  if (regs == NULL)
     {
       return ERROR_NULL_PTR;
     }
@@ -122,14 +180,25 @@ Error
 getDiscreteState (uint8_t port, bool *state)
 {
   x17v358_mcr_reg_t mcr = { 0 };
-  volatile x17v358_channel_regs_t *regs = getChannelRegs (port);
+  volatile x17v358_channel_regs_t *regs = NULL;
 
   if (!isValidPort (port))
     {
-      return ERROR_INVALID_PARAM;
+      return ERROR_INVALID_PORT;
     }
 
-  if (regs == 0 || state == 0)
+  if (state == NULL)
+    {
+      return ERROR_NULL_PTR;
+    }
+
+  if (!isRegisterBaseValid ())
+    {
+      return ERROR_NULL_REGISTER_BASE;
+    }
+
+  regs = getChannelRegs (port);
+  if (regs == NULL)
     {
       return ERROR_NULL_PTR;
     }
@@ -144,14 +213,20 @@ Error
 setLoopbackState (uint8_t port, bool enable)
 {
   x17v358_mcr_reg_t mcr = { 0 };
-  volatile x17v358_channel_regs_t *regs = getChannelRegs (port);
+  volatile x17v358_channel_regs_t *regs = NULL;
 
   if (!isValidPort (port))
     {
-      return ERROR_INVALID_PARAM;
+      return ERROR_INVALID_PORT;
     }
 
-  if (regs == 0)
+  if (!isRegisterBaseValid ())
+    {
+      return ERROR_NULL_REGISTER_BASE;
+    }
+
+  regs = getChannelRegs (port);
+  if (regs == NULL)
     {
       return ERROR_NULL_PTR;
     }
@@ -167,14 +242,20 @@ Error
 setFifoState (uint8_t port, bool enable)
 {
   x17v358_fcr_isr_reg_t fcr = { 0 };
-  volatile x17v358_channel_regs_t *regs = getChannelRegs (port);
+  volatile x17v358_channel_regs_t *regs = NULL;
 
   if (!isValidPort (port))
     {
-      return ERROR_INVALID_PARAM;
+      return ERROR_INVALID_PORT;
     }
 
-  if (regs == 0)
+  if (!isRegisterBaseValid ())
+    {
+      return ERROR_NULL_REGISTER_BASE;
+    }
+
+  regs = getChannelRegs (port);
+  if (regs == NULL)
     {
       return ERROR_NULL_PTR;
     }
@@ -185,3 +266,4 @@ setFifoState (uint8_t port, bool enable)
 
   return ERROR_SUCCESS;
 }
+

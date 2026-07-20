@@ -1,0 +1,86 @@
+# Doxygen Configuration File for XR17V358 Serial Driver
+# Generate with: doxygen Doxyfile
+# View HTML: open docs/html/index.html
+
+PROJECT_NAME           = "XR17V358 Serial Driver"
+PROJECT_NUMBER         = 1.0
+PROJECT_BRIEF          = "MaxLinear XR17V358 8-channel PCIe UART Linux driver"
+
+OUTPUT_DIRECTORY       = ./docs
+
+# Input settings
+INPUT                  = include/
+INPUT_ENCODING         = UTF-8
+FILE_PATTERNS          = *.h
+RECURSIVE              = NO
+
+# Documentation extraction
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+
+# Code parsing
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+
+# Output formats
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+GENERATE_LATEX         = YES
+LATEX_OUTPUT           = latex
+GENERATE_XML           = NO
+GENERATE_MAN           = NO
+
+# HTML settings
+HTML_DYNAMIC_SECTIONS  = YES
+USE_MATHJAX            = NO
+
+# Search
+SEARCHENGINE           = YES
+SERVER_BASED_SEARCH    = NO
+
+# Documentation
+DISABLE_INDEX          = NO
+GENERATE_TREEVIEW      = YES
+TREEVIEW_WIDTH         = 250
+
+# Warnings
+QUIET                  = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_NO_PARAMDOC       = YES
+WARN_FORMAT            = "$file:$line: $text"
+
+# Source browser
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+# Sorting and organization
+SORT_MEMBER_DOCS       = YES
+SORT_MEMBERS_CTORS_1ST = NO
+SORT_GROUP_NAMES       = NO
+TYPEDEF_HIDES_STRUCT   = YES
+
+# Graphviz
+HAVE_DOT               = NO
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+
+# Output options
+GENERATE_TODOLIST      = YES
+GENERATE_BUGLIST       = YES
+GENERATE_DEPRECATEDLIST= YES
+
+# Verbosity and organization
+VERBATIM_HEADERS       = YES
+COLLABORATION_GRAPH    = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+
+# Include path
+INCLUDE_PATH           = include/
