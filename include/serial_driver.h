@@ -31,10 +31,9 @@
 #include <stdint.h>
 
 #include "errors.h"
-
+#include "x17v358_regs.h"
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 /**
@@ -42,6 +41,29 @@ extern "C"
  * @brief Functions for initializing serial ports.
  * @{
  */
+
+typedef enum {
+  SERIAL_MODE = 0,
+  DISCRETE_MODE = 1
+} serial_mode_t;
+
+typedef struct {
+  uint32_t baud_rate;
+  uint8_t stop_bits;
+  bool parity;
+  serial_mode_t mode;
+
+} port_config_t;
+
+typedef struct {
+  uint8_t dll;
+  uint8_t dlm;
+  uint8_t dld;
+  uint32_t actual_baud_rate;
+  uint32_t error_ppm;
+} x17v358_baud_rate_config_t;
+
+extern port_config_t ports[MAX_NUM_PORTS + 1u];
 
 /**
  * @brief Initialize a serial port with default configuration.
@@ -65,7 +87,7 @@ extern "C"
  *
  * @see setFifoState, setLoopbackState, disableAllInterrupts
  */
-Error portInitialization (uint8_t port);
+Error portInitialization(uint8_t port);
 
 /** @} */
 
@@ -96,7 +118,7 @@ Error portInitialization (uint8_t port);
  *
  * @see portInitialization
  */
-Error disableAllInterrupts (uint8_t port);
+Error disableAllInterrupts(uint8_t port);
 
 /** @} */
 
@@ -122,7 +144,7 @@ Error disableAllInterrupts (uint8_t port);
  *
  * @see getDiscreteState
  */
-Error setDiscreteState (uint8_t port, bool state);
+Error setDiscreteState(uint8_t port, bool state);
 
 /**
  * @brief Read the current RTS (Request To Send) modem control signal state.
@@ -140,7 +162,7 @@ Error setDiscreteState (uint8_t port, bool state);
  *
  * @see setDiscreteState
  */
-Error getDiscreteState (uint8_t port, bool *state);
+Error getDiscreteState(uint8_t port, bool* state);
 
 /** @} */
 
@@ -166,7 +188,7 @@ Error getDiscreteState (uint8_t port, bool *state);
  *
  * @note In loopback mode, transmitted data is echoed back to the receiver.
  */
-Error setLoopbackState (uint8_t port, bool enable);
+Error setLoopbackState(uint8_t port, bool enable);
 
 /** @} */
 
@@ -196,7 +218,7 @@ Error setLoopbackState (uint8_t port, bool enable);
  *
  * @see getFifoState
  */
-Error setFifoState (uint8_t port, bool enable);
+Error setFifoState(uint8_t port, bool enable);
 
 /**
  * @brief Query whether the transmit/receive FIFO is enabled.
@@ -214,7 +236,58 @@ Error setFifoState (uint8_t port, bool enable);
  *
  * @see setFifoState
  */
-Error getFifoState (uint8_t port, bool *state);
+Error getFifoState(uint8_t port, bool* state);
+
+
+/** @} */
+
+/**
+ * @defgroup DriverBaudRate Baud Rate Calculation
+ * @brief Helpers for calculating XR17V358 baud-rate generator settings.
+ * @{
+ */
+
+/**
+ * @brief Calculate XR17V358 divisor registers for a requested baud rate.
+ *
+ * The XR17V358 uses DLL/DLM for the integer divisor and DLD[3:0] for the
+ * fractional divisor in 1/16 increments. This helper assumes the normal 16x
+ * sampling clock and returns the closest representable divisor.
+ *
+ * @param[in] input_clock_hz UART reference clock in Hz.
+ * @param[in] requested_baud_rate Desired baud rate in bits per second.
+ * @param[in] prescaler_divide_by_4 true when MCR[7] selects divide-by-4.
+ * @param[out] config Calculated divisor register values and actual baud rate.
+ *
+ * @retval ERROR_SUCCESS Baud-rate settings calculated successfully.
+ * @retval ERROR_INVALID_PARAM clock/baud is zero or cannot be represented.
+ * @retval ERROR_NULL_PTR config pointer is NULL.
+ */
+Error calculateBaudDivisor(uint32_t input_clock_hz,
+                           uint32_t requested_baud_rate,
+                           bool prescaler_divide_by_4,
+                           x17v358_baud_rate_config_t* config);
+
+/**
+ * @brief Calculate the actual baud rate from XR17V358 divisor registers.
+ *
+ * @param[in] input_clock_hz UART reference clock in Hz.
+ * @param[in] dll Divisor latch low register value.
+ * @param[in] dlm Divisor latch high register value.
+ * @param[in] dld Fractional divisor latch register value; only DLD[3:0] used.
+ * @param[in] prescaler_divide_by_4 true when MCR[7] selects divide-by-4.
+ * @param[out] baud_rate Actual baud rate in bits per second.
+ *
+ * @retval ERROR_SUCCESS Baud rate calculated successfully.
+ * @retval ERROR_INVALID_PARAM clock/divisor is zero.
+ * @retval ERROR_NULL_PTR baud_rate pointer is NULL.
+ */
+Error calculateBaudRate(uint32_t input_clock_hz,
+                        uint8_t dll,
+                        uint8_t dlm,
+                        uint8_t dld,
+                        bool prescaler_divide_by_4,
+                        uint32_t* baud_rate);
 
 /** @} */
 
@@ -240,7 +313,9 @@ Error getFifoState (uint8_t port, bool *state);
  *
  * @warning This is a testing interface and not part of the production API.
  */
-void serialDriverSetRegisterBaseForTest (uintptr_t base_addr);
+void serialDriverSetRegisterBaseForTest(uintptr_t base_addr);
+
+Error setPortConfiguration(uint8_t port);
 
 #endif
 

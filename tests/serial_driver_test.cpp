@@ -19,6 +19,9 @@ class SerialDriverTest : public ::testing::Test {
  protected:
   void SetUp() override {
     mmio.fill(std::byte{0u});
+    for (port_config_t& config : ports) {
+      config = {};
+    }
     serialDriverSetRegisterBaseForTest(
         reinterpret_cast<uintptr_t>(mmio.data()));
   }
@@ -53,6 +56,49 @@ TEST_F(SerialDriverTest, PortInitializationConfiguresExpectedDefaults) {
     EXPECT_EQ(static_cast<unsigned int>(regs->isr_fcr.fcr_bits.fifo_enable),
               1u);
   }
+}
+
+TEST_F(SerialDriverTest, PortInitializationCalculatesDefaultBaudRate) {
+  constexpr uint8_t kPort = 3u;
+
+  EXPECT_EQ(portInitialization(kPort), ERROR_SUCCESS);
+
+  EXPECT_EQ(ports[kPort].baud_rate, 115207u);
+}
+
+TEST_F(SerialDriverTest, PortInitializationCalculatesConfiguredBaudRate) {
+  constexpr uint8_t kPort = 4u;
+
+  ports[kPort].baud_rate = 1000000u;
+
+  EXPECT_EQ(portInitialization(kPort), ERROR_SUCCESS);
+
+  EXPECT_EQ(ports[kPort].baud_rate, 1000000u);
+}
+
+TEST_F(SerialDriverTest, SetPortConfigurationProgramsBaudRegisters) {
+  constexpr uint8_t kPort = 6u;
+  volatile x17v358_channel_regs_t* regs = regsFor(kPort);
+
+  regs->lcr.raw = 0x03u;
+  regs->isr_fcr.raw = 0xA0u;
+  ports[kPort].baud_rate = 115200u;
+
+  EXPECT_EQ(setPortConfiguration(kPort), ERROR_SUCCESS);
+
+  EXPECT_EQ(regs->rhr_thr_dll.raw, 0x43u);
+  EXPECT_EQ(regs->ier_dlh.raw, 0x00u);
+  EXPECT_EQ(regs->isr_fcr.raw, 0xADu);
+  EXPECT_EQ(regs->lcr.raw, 0x03u);
+  EXPECT_EQ(ports[kPort].baud_rate, 115207u);
+}
+
+TEST_F(SerialDriverTest, PortInitializationRejectsInvalidConfiguredBaudRate) {
+  constexpr uint8_t kPort = 5u;
+
+  ports[kPort].baud_rate = 1u;
+
+  EXPECT_EQ(portInitialization(kPort), ERROR_INVALID_PARAM);
 }
 
 TEST_F(SerialDriverTest, PortInitializationRejectsInvalidPort) {
@@ -233,6 +279,90 @@ TEST_F(SerialDriverTest, GetFifoStateRejectsNullRegisterBase) {
 }
 
 // ========================================================================
+// Baud Rate Calculation Tests
+// ========================================================================
+
+TEST_F(SerialDriverTest, CalculateBaudDivisorFor115200At125MHz) {
+  x17v358_baud_rate_config_t config = {};
+
+  EXPECT_EQ(calculateBaudDivisor(125000000u, 115200u, false, &config),
+            ERROR_SUCCESS);
+
+  EXPECT_EQ(config.dlm, 0x00u);
+  EXPECT_EQ(config.dll, 0x43u);
+  EXPECT_EQ(config.dld, 0x0Du);
+  EXPECT_EQ(config.actual_baud_rate, 115207u);
+  EXPECT_LT(config.error_ppm, 100u);
+}
+
+TEST_F(SerialDriverTest, CalculateBaudDivisorForCommonRatesAt125MHz) {
+  x17v358_baud_rate_config_t config = {};
+
+  EXPECT_EQ(calculateBaudDivisor(125000000u, 9600u, false, &config),
+            ERROR_SUCCESS);
+  EXPECT_EQ(config.dlm, 0x03u);
+  EXPECT_EQ(config.dll, 0x2Du);
+  EXPECT_EQ(config.dld, 0x0Du);
+  EXPECT_EQ(config.actual_baud_rate, 9600u);
+
+  EXPECT_EQ(calculateBaudDivisor(125000000u, 1000000u, false, &config),
+            ERROR_SUCCESS);
+  EXPECT_EQ(config.dlm, 0x00u);
+  EXPECT_EQ(config.dll, 0x07u);
+  EXPECT_EQ(config.dld, 0x0Du);
+  EXPECT_EQ(config.actual_baud_rate, 1000000u);
+}
+
+TEST_F(SerialDriverTest, CalculateBaudDivisorSupportsDivideBy4Prescaler) {
+  x17v358_baud_rate_config_t config = {};
+
+  EXPECT_EQ(calculateBaudDivisor(125000000u, 9600u, true, &config),
+            ERROR_SUCCESS);
+
+  EXPECT_EQ(config.dlm, 0x00u);
+  EXPECT_EQ(config.dll, 0xCBu);
+  EXPECT_EQ(config.dld, 0x07u);
+  EXPECT_EQ(config.actual_baud_rate, 9601u);
+}
+
+TEST_F(SerialDriverTest, CalculateBaudRateFromDivisorRegisters) {
+  uint32_t baud_rate = 0u;
+
+  EXPECT_EQ(calculateBaudRate(125000000u, 0x43u, 0x00u, 0x0Du, false,
+                              &baud_rate),
+            ERROR_SUCCESS);
+  EXPECT_EQ(baud_rate, 115207u);
+
+  EXPECT_EQ(calculateBaudRate(125000000u, 0x43u, 0x00u, 0xFDu, false,
+                              &baud_rate),
+            ERROR_SUCCESS);
+  EXPECT_EQ(baud_rate, 115207u);
+}
+
+TEST_F(SerialDriverTest, BaudCalculationRejectsInvalidInputs) {
+  x17v358_baud_rate_config_t config = {};
+  uint32_t baud_rate = 0u;
+
+  EXPECT_EQ(calculateBaudDivisor(125000000u, 115200u, false, nullptr),
+            ERROR_NULL_PTR);
+  EXPECT_EQ(calculateBaudDivisor(0u, 115200u, false, &config),
+            ERROR_INVALID_PARAM);
+  EXPECT_EQ(calculateBaudDivisor(125000000u, 0u, false, &config),
+            ERROR_INVALID_PARAM);
+  EXPECT_EQ(calculateBaudDivisor(125000000u, 1u, false, &config),
+            ERROR_INVALID_PARAM);
+
+  EXPECT_EQ(calculateBaudRate(125000000u, 0x43u, 0x00u, 0x0Du, false,
+                              nullptr),
+            ERROR_NULL_PTR);
+  EXPECT_EQ(calculateBaudRate(0u, 0x43u, 0x00u, 0x0Du, false, &baud_rate),
+            ERROR_INVALID_PARAM);
+  EXPECT_EQ(calculateBaudRate(125000000u, 0x00u, 0x00u, 0x00u, false,
+                              &baud_rate),
+            ERROR_INVALID_PARAM);
+}
+
+// ========================================================================
 // Boundary Tests
 // ========================================================================
 
@@ -291,4 +421,3 @@ TEST_F(SerialDriverTest, MultipleStateChangesPreserveOtherBits) {
   // Verify both bits are set
   EXPECT_EQ(static_cast<unsigned int>(regs->mcr.bits.rts), 1u);
 }
-

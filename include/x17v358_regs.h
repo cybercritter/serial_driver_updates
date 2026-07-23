@@ -117,6 +117,25 @@ typedef union
 } x17v358_lcr_reg_t;
 
 /**
+ * @brief Divisor Latch Fraction Register (DLD) - Fractional baud divisor.
+ *
+ * Offset: 0x02 (when DLAB=1 in LCR)
+ * Access: Read/Write
+ *
+ * Holds the fractional baud-rate divisor in sixteenths. DLD[3:0] is the
+ * fraction field; upper bits are reserved and should be preserved.
+ */
+typedef union
+{
+  volatile uint8_t raw;              /**< @brief Raw register access. */
+  struct
+  {
+    volatile uint8_t fraction : 4;   /**< @brief Fractional divisor, in 1/16 steps. */
+    volatile uint8_t reserved : 4;   /**< @brief Reserved bits. */
+  } bits;                             /**< @brief Bitfield access. */
+} x17v358_dld_reg_t;
+
+/**
  * @brief Line Status Register (LSR) - Transmit/receive status and error flags.
  *
  * Offset: 0x05
@@ -555,4 +574,3 @@ x17v358_tx_fifo_write (volatile x17v358_channel_regs_t *regs, uint8_t value)
 /** @} */
 
 #endif /* X17V358_REGS_H */
-
